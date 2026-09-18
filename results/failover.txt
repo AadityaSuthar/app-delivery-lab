@@ -1,0 +1,15 @@
+# Failover test (round-robin, max_fails/fail_timeout defaults)
+
+Killed backend-2 mid-traffic (docker stop), then sent load.
+Note: container IPs reshuffle across restarts, so results are read by
+mapping IP->name at test time.
+
+Observed: traffic served almost entirely by the two surviving backends;
+the stopped backend received only a few initial requests before NGINX
+marked it down (max_fails) and rerouted to healthy peers within one
+detection cycle. Clients continued to be served — no sustained errors.
+
+Architectural note: open-source NGINX does PASSIVE health checks — it
+only detects failure when a proxied request fails. NGINX Plus (F5) adds
+ACTIVE health checks that probe backends proactively, detecting failure
+before a real request hits the dead node.
