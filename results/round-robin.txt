@@ -1,0 +1,6 @@
+# Round-robin (default) — ab -n 30000 -c 3
+10005  backend-1 (172.19.0.2)
+ 9997  backend-3 (172.19.0.3)
+ 9998  backend-1 (172.19.0.4)
+Even distribution across all three backends over 30,000 requests.
+Spread of 8 / 30000 — effectively perfect.

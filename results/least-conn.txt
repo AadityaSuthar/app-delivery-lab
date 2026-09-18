@@ -1,0 +1,15 @@
+# Least-connections (least_conn) — ab -n 3000 -c 3
+ 989  backend-2 (172.19.0.2)
+1007  backend-3 (172.19.0.3)
+1004  backend-1 (172.19.0.4)
+
+Even distribution (~1000 each), effectively identical to round-robin.
+
+Why: least_conn routes each request to the backend with the fewest
+active connections. All three backends here are identical and respond
+equally fast, so none ever accumulates a connection backlog — the
+"fewest connections" is always a near-tie and it behaves like
+round-robin. The two methods diverge only when backends respond at
+different speeds: a slow backend holds connections open longer, so
+least_conn steers new requests away from it while round-robin keeps
+feeding it blindly.

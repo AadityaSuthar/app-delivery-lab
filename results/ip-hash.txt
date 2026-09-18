@@ -1,0 +1,19 @@
+# IP-hash (hash $client_ip consistent)
+
+## Single client (ab from one host IP) — ab -n 3000 -c 3
+3000  backend-2 (172.19.0.2)   # all traffic from one IP pinned to one backend
+
+## Five simulated clients (X-Forwarded-For)
+10.0.0.1 -> backend (172.19.0.2)
+10.0.0.2 -> backend (172.19.0.2)
+10.0.0.3 -> backend (172.19.0.3)
+10.0.0.4 -> backend (172.19.0.3)
+10.0.0.5 -> backend (172.19.0.3)
+# different clients spread across backends
+
+## Stickiness: 10.0.0.1 x5
+all 5 -> backend (172.19.0.2)   # same client, same backend every time
+
+Conclusion: ip_hash routes each client to a fixed backend (session
+persistence). A single client is NOT load-balanced — the intended
+trade-off for keeping session state on one server.
