@@ -15,23 +15,19 @@ jobs:
       - name: Wait for services
         run: sleep 10
 
-      - name: Install ApacheBench
-        run: sudo apt-get update && sudo apt-get install -y apache2-utils
-
       - name: Test distribution across backends
         run: |
-          LB=$(docker ps --filter name=loadbalancer --format '{{.Names}}')
-          echo "Load balancer container: $LB"
-          docker exec "$LB" sh -c 'echo > /var/log/nginx/lb.log'
-          ab -n 300 -c 3 http://localhost:8080/ > /dev/null 2>&1
-          BACKENDS=$(docker exec "$LB" cat /var/log/nginx/lb.log | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u | wc -l)
-          echo "Distinct backends hit: $BACKENDS"
-          docker exec "$LB" cat /var/log/nginx/lb.log | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq -c
-          if [ "$BACKENDS" -lt 2 ]; then
+          echo "Sending 30 requests with fresh connections..."
+          for i in $(seq 1 30); do
+            curl -s --no-keepalive "http://localhost:8080/?x=$i"
+          done | grep -oE 'backend-[0-9]' | sort | uniq -c | tee /tmp/dist.txt
+          DISTINCT=$(grep -oE 'backend-[0-9]' /tmp/dist.txt | sort -u | wc -l)
+          echo "Distinct backends hit: $DISTINCT"
+          if [ "$DISTINCT" -lt 2 ]; then
             echo "FAIL: traffic did not distribute across multiple backends"
             exit 1
           fi
-          echo "PASS: traffic distributed across $BACKENDS backends"
+          echo "PASS: traffic distributed across $DISTINCT backends"
 
       - name: Tear down
         if: always()
