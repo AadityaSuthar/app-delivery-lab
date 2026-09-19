@@ -20,10 +20,13 @@ jobs:
 
       - name: Test distribution across backends
         run: |
-          docker exec app-delivery-lab-loadbalancer-1 sh -c 'echo > /var/log/nginx/lb.log'
+          LB=$(docker ps --filter name=loadbalancer --format '{{.Names}}')
+          echo "Load balancer container: $LB"
+          docker exec "$LB" sh -c 'echo > /var/log/nginx/lb.log'
           ab -n 300 -c 3 http://localhost:8080/ > /dev/null 2>&1
-          BACKENDS=$(docker exec app-delivery-lab-loadbalancer-1 cat /var/log/nginx/lb.log | grep -o '172.19.0.[0-9]*' | sort -u | wc -l)
+          BACKENDS=$(docker exec "$LB" cat /var/log/nginx/lb.log | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort -u | wc -l)
           echo "Distinct backends hit: $BACKENDS"
+          docker exec "$LB" cat /var/log/nginx/lb.log | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq -c
           if [ "$BACKENDS" -lt 2 ]; then
             echo "FAIL: traffic did not distribute across multiple backends"
             exit 1
