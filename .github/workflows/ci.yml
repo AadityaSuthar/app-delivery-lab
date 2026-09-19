@@ -1,0 +1,35 @@
+name: Load Balancer CI
+
+on: [push]
+
+jobs:
+  test-load-balancing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Start the stack
+        run: docker compose up -d
+
+      - name: Wait for services
+        run: sleep 10
+
+      - name: Install ApacheBench
+        run: sudo apt-get update && sudo apt-get install -y apache2-utils
+
+      - name: Test distribution across backends
+        run: |
+          docker exec app-delivery-lab-loadbalancer-1 sh -c 'echo > /var/log/nginx/lb.log'
+          ab -n 300 -c 3 http://localhost:8080/ > /dev/null 2>&1
+          BACKENDS=$(docker exec app-delivery-lab-loadbalancer-1 cat /var/log/nginx/lb.log | grep -o '172.19.0.[0-9]*' | sort -u | wc -l)
+          echo "Distinct backends hit: $BACKENDS"
+          if [ "$BACKENDS" -lt 2 ]; then
+            echo "FAIL: traffic did not distribute across multiple backends"
+            exit 1
+          fi
+          echo "PASS: traffic distributed across $BACKENDS backends"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down
