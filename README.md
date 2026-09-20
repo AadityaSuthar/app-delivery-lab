@@ -64,3 +64,33 @@ before a real request ever hits it.
 - `results/round-robin.txt`, `least-conn.txt`, `ip-hash.txt`, `failover.txt`
 - `docker-compose.yml` — 3 backends + load balancer
 - `backend/index.html` — per-replica identity page
+
+## Kubernetes Migration (kind)
+
+The Docker Compose stack was migrated to Kubernetes using kind, replacing
+Compose's per-container definitions with declarative manifests:
+
+| Docker Compose            | Kubernetes                          |
+| ------------------------- | ----------------------------------- |
+| 3 backend containers      | Deployment (replicas: 3)            |
+| NGINX load balancer       | NGINX Ingress Controller            |
+| docker network            | Service + NetworkPolicy             |
+
+- **Deployment** (`k8s-backend.yaml`) — declares 3 backend replicas; K8s
+  maintains that count and self-heals dead pods.
+- **Service** (`k8s-service.yaml`) — stable internal address that
+  load-balances across the pods by label selector.
+- **Ingress + NGINX Ingress Controller** (`k8s-ingress.yaml`) — routes
+  external traffic (localhost:8090) to the Service. Verified end-to-end
+  with curl.
+- **NetworkPolicy** (`k8s-networkpolicy.yaml`) — restricts backend pods
+  to accept traffic only from the ingress-nginx namespace (ingress-only).
+
+### Note on NetworkPolicy enforcement
+
+kind's default CNI (kindnet) does not enforce NetworkPolicies — the
+policy is accepted by the API but not enforced at the packet level.
+Enforcement requires a CNI that supports it (e.g. Calico). The policy is
+correct and would restrict traffic as intended in a production cluster
+with an enforcing CNI. This distinction — a policy being *defined* vs
+*enforced* — is itself an important operational security detail.
